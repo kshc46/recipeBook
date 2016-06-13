@@ -1,0 +1,265 @@
+var defaultJSON = [{
+  "id": 1,
+  "food": "pizza dough",
+  "ingredients": ["flour", "yeast", "water", "vegetable oil"]
+}, {
+  "id": 2,
+  "food": "pepperoni pizza",
+  "ingredients": ["dough", "pizza sauce", "cheese", "pepperoni"]
+}]
+
+/*function reset() {
+  localStorage.setItem("data", JSON.stringify(defaultJSON))
+}
+
+reset()*/
+
+var RecipeRender = React.createClass({
+  getInitialState() {
+    return {
+      data: localStorage.getItem("data") || JSON.stringify(defaultJSON),
+      currentFoodId: null,
+      showModal: false
+    };
+  },
+  addFood(change) {
+    var arr = JSON.parse(this.state.data)
+    arr.push({
+      "id": arr[arr.length-1].id + 1,
+      "food": change.food,
+      "ingredients": (change.ingredients).split(",")
+    })
+    localStorage.setItem("data", JSON.stringify(arr))
+    this.setState({
+      data: localStorage.getItem("data"),
+      showModal: false
+    })
+  },
+  updateFood(change) {
+    var data = JSON.parse(localStorage.getItem("data"))
+    data = data.map((oldFood) => {
+      if (oldFood.id === this.state.currentFoodId) return {
+        "id": this.state.currentFoodId,
+        "food": change.food,
+        "ingredients": (change.ingredients).split(",")
+      }
+      return (
+        oldFood
+      )
+    })
+    localStorage.setItem("data", JSON.stringify(data))
+    this.setState({
+      data: localStorage.getItem("data"),
+      currentFoodId: null,
+      showModal: false
+    })
+  },
+  deleteFood(foodId) {
+    var data = JSON.parse(localStorage.getItem("data"))
+    var newDataArr = []
+    data.map((oldFood) => {
+      if (oldFood.id != foodId) return (
+        newDataArr.push(oldFood)
+      )
+    })
+    localStorage.setItem("data", JSON.stringify(newDataArr))
+    this.setState({
+      data: localStorage.getItem("data")
+    })
+  },
+  onEdit(foodId) {
+    this.setState({
+      currentFoodId: foodId,
+      showModal: true
+    })
+  },
+  onModalClose() {
+    this.setState({
+      currentFoodId: null,
+      showModal: false
+    })
+  },
+  onAdd() {
+    this.setState({
+      showModal: true
+    })
+  },
+  render() {
+    var info = JSON.parse(this.state.data)
+    return (
+      <div className="jumbotron col-sm-8 col-sm-push-2" id="mainContainer">
+        <CollapseTopLevel  data={info} onEdit={this.onEdit} deleteFood={this.deleteFood} />
+        <button type="button" className="btn btn-success" onClick={this.onAdd}>Add Recipe</button>
+        {this.state.showModal ? <Modal data={info} addFood={this.addFood} updateFood={this.updateFood} currentFoodId={this.state.currentFoodId} onModalClose={this.onModalClose}/>: null}
+      </div>
+    );
+  }
+})
+
+
+var DATA_VALIDATION = React.PropTypes.arrayOf(
+  React.PropTypes.shape({
+    food: React.PropTypes.string.isRequired,
+    ingredients: React.PropTypes.arrayOf(React.PropTypes.string).isRequired
+  })
+).isRequired
+
+
+
+var CollapseTopLevel = React.createClass({
+  propTypes: {
+    data: DATA_VALIDATION,
+    onEdit: React.PropTypes.func.isRequired,
+    deleteFood: React.PropTypes.func.isRequired
+  },
+  render() {
+    return (
+      <div className="panel-group">
+        {this.props.data.map((data) => {
+          var onStartEdit = () => {
+            this.props.onEdit(data.id)
+          }
+          var onStartDelete = () => {
+            this.props.deleteFood(data.id)
+          }
+          return (
+            <div id={"testTest"+data.id} className="panel panel-default">
+              <div className="panel-heading">
+                <h4 className="panel-title">
+                  <a data-toggle="collapse" href={"#"+data.id}>{data.food}</a>
+                </h4>
+              </div>
+              <div id={data.id} className="panel-collapse collapse">
+                <ListContent ingredients={data.ingredients} />
+                <div className="panel-footer">
+                  <div className="row">
+                    <button type="button" className="btn btn-primary" id={"innerButtons"+data.id} onClick={onStartEdit}>Edit</button>
+                    <button type="button" className="btn btn-danger" id={"innerButtons"+data.id} onClick={onStartDelete}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    );
+  }
+})
+
+
+
+var ListContent = React.createClass({
+  render: function() {
+    var ingredientLevel = this.props.ingredients.map(function(data) {
+      return (
+        <li className="list-group-item">{data}</li>
+      )
+    })
+    return (
+      <ul className="list-group">
+        {ingredientLevel}
+      </ul>
+    );
+  }
+})
+
+
+
+var Modal = React.createClass({
+  propTypes: {
+    data: DATA_VALIDATION,
+    addFood: React.PropTypes.func.isRequired,
+    updateFood: React.PropTypes.func.isRequired,
+    currentFoodId: React.PropTypes.number.isRequired,
+    onModalCancel: React.PropTypes.func.isRequired
+  },
+  getInitialState() {
+    var currentFood
+    this.props.data.filter((food) => {
+      if(food.id === this.props.currentFoodId) {
+        currentFood = food
+      }
+    })
+    if (!currentFood) return {
+      food: "",
+      ingredients: "",
+      title: "Add Recipe",
+      button: "Add"
+    }
+    return {
+      food: currentFood.food,
+      ingredients: currentFood.ingredients,
+      title: "Edit Recipe",
+      button: "Update"
+    }
+  },
+  componentDidMount() {
+    $('#myModal').modal({
+      show: true
+    })
+  },
+  onChangeFood(event) {
+    this.setState({
+      food: event.target.value
+    })
+  },
+  onChangeIngredients(event) {
+    this.setState({
+      ingredients: event.target.value
+    })
+  },
+  onAddEdit() {
+    var change = {
+      "food": this.state.food,
+      "ingredients": this.state.ingredients
+    }
+    if (this.props.currentFoodId === null) {
+      this.props.addFood(change)
+    } else {
+      this.props.updateFood(change)
+    }
+    this.setState({food: "", ingredients: ""})
+    $('#myModal').modal({
+      show: false
+    })
+  },
+  onCancel() {
+    $('#myModal').modal({
+      show: false
+    })
+    this.props.onModalClose()
+  },
+  render() {
+    return (
+      <div id="myModal" className="modal fade" role="dialog">
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <button type="button" className="close" data-dismiss="modal">&times;</button>
+              <h4 className="modal-title">{this.state.title}</h4>
+            </div>
+            <div className="modal-body">
+              <p>Food</p>
+              <input type="text" value={this.state.food} className="form-control" placeholder="ex. Pizza" onChange={this.onChangeFood} />
+              <p>Ingredients</p>
+              <input type="text" value={this.state.ingredients} className="form-control" placeholder="ex. Sauce,Cheese,Pepperoni" onChange={this.onChangeIngredients} />
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-default" data-dismiss="modal" onClick={this.onAddEdit}>{this.state.button}</button>
+              <button type="button" className="btn btn-default" data-dismiss="modal" onClick={this.onCancel}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+});
+
+function ren() {
+  ReactDOM.render(
+    <RecipeRender />,
+    document.getElementById('content')
+  );
+};
+
+ren()
